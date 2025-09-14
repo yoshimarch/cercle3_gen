@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>円の弦の長さ計算アニメーション</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 30px;
+        }
+        h1 {
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 30px;
+            font-size: 24px;
+        }
+        .controls {
+            margin-bottom: 20px;
+        }
+        .control-group {
+            margin-bottom: 15px;
+        }
+        .control-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .control-label {
+            font-weight: 600;
+            color: #444;
+        }
+        .control-value {
+            font-weight: 700;
+            font-size: 18px;
+            color: #2980b9;
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 10px;
+            border-radius: 5px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3498db;
+            cursor: pointer;
+        }
+        .animation-button {
+            display: block;
+            width: 200px;
+            margin: 20px auto;
+            padding: 10px 15px;
+            background-color: #3498db;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        .animation-button:hover {
+            background-color: #2980b9;
+        }
+        .canvas-container {
+            display: flex;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: white;
+        }
+        .explanation {
+            background-color: #ebf5fb;
+            border-radius: 5px;
+            padding: 15px 20px;
+            margin-top: 20px;
+        }
+        .explanation h3 {
+            font-size: 18px;
+            margin-top: 0;
+            margin-bottom: 10px;
+            color: #2c3e50;
+        }
+        .explanation ul {
+            padding-left: 20px;
+            margin: 0;
+        }
+        .explanation li {
+            margin-bottom: 5px;
+        }
+        .footer {
+            margin-top: 20px;
+            text-align: center;
+            font-size: 14px;
+            color: #777;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>円の弦の長さ計算アニメーション</h1>
+        
+        <div class="controls">
+            <div class="control-group">
+                <div class="control-header">
+                    <span class="control-label">半径 (1～100):</span>
+                    <span class="control-value" id="radius-value">50</span>
+                </div>
+                <input type="range" id="radius-slider" min="1" max="100" step="1" value="50">
+            </div>
+            
+            <div class="control-group">
+                <div class="control-header">
+                    <span class="control-label">中心角 (1～360°):</span>
+                    <span class="control-value" id="angle-value">60°</span>
+                </div>
+                <input type="range" id="angle-slider" min="1" max="360" step="1" value="60">
+            </div>
+        </div>
+        
+        <button class="animation-button" id="animation-button">アニメーションを再生</button>
+        
+        <div class="canvas-container">
+            <canvas id="chord-canvas" width="600" height="400"></canvas>
+        </div>
+        
+        <div class="explanation">
+            <h3>説明:</h3>
+            <ul>
+                <li>半径(r)と中心角(θ)を調整して、円の弦の長さがどのように変化するか観察できます</li>
+                <li>弦の長さの公式: c = 2 × r × sin(θ/2)</li>
+                <li>ABは弦で、Hは弦ABの中点です</li>
+                <li>黄色で強調表示された三角形OBHは、弦の長さの計算の基礎となる三角形です</li>
+                <li>角BOHは θ/2 に等しく、△OBHの斜辺OBの長さは半径rです</li>
+                <li>「アニメーションを再生」ボタンを押すと、弦が形成される過程と計算が表示されます</li>
+            </ul>
+        </div>
+        
+        <div class="footer">
+            <p>※ このアプリは、円の弦の長さを視覚的に理解するための教育ツールです。</p>
+            <p>※ スライダーを動かして様々な半径と角度での弦の長さを確認してみましょう。</p>
+        </div>
+    </div>
+
+    <script>
+        // 要素の取得
+        const radiusSlider = document.getElementById('radius-slider');
+        const angleSlider = document.getElementById('angle-slider');
+        const radiusValue = document.getElementById('radius-value');
+        const angleValue = document.getElementById('angle-value');
+        const animationButton = document.getElementById('animation-button');
+        const canvas = document.getElementById('chord-canvas');
+        const ctx = canvas.getContext('2d');
+        
+        // 状態管理
+        let radius = parseFloat(radiusSlider.value);
+        let angle = parseFloat(angleSlider.value);
+        let animationStep = 0;
+        let isAnimating = false;
+        let animationTimer = null;
+        
+        // イベントリスナーの設定
+        radiusSlider.addEventListener('input', function() {
+            radius = parseFloat(this.value);
+            radiusValue.textContent = radius;
+            drawCanvas();
+        });
+        
+        angleSlider.addEventListener('input', function() {
+            angle = parseFloat(this.value);
+            angleValue.textContent = angle + '°';
+            drawCanvas();
+        });
+        
+        animationButton.addEventListener('click', startAnimation);
+        
+        // アニメーション開始関数
+        function startAnimation() {
+            animationStep = 0;
+            isAnimating = true;
+            runAnimation();
+        }
+        
+        // アニメーションフレーム処理関数
+        function runAnimation() {
+            if (isAnimating) {
+                const totalSteps = 100;
+                
+                if (animationStep < totalSteps) {
+                    animationStep++;
+                    drawCanvas();
+                    animationTimer = setTimeout(runAnimation, 30);
+                } else {
+                    isAnimating = false;
+                }
+            }
+        }
+        
+        // 弦の長さの計算
+        function calculateChordLength() {
+            // 角度をラジアンに変換
+            const angleInRadians = (angle * Math.PI) / 180;
+            // 弦の長さ = 2 * r * sin(θ/2)
+            return 2 * radius * Math.sin(angleInRadians / 2);
+        }
+        
+        // キャンバス描画関数
+        function drawCanvas() {
+            // キャンバスをクリア
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            const width = canvas.width;
+            const height = canvas.height;
+            const centerX = width / 2;
+            const centerY = height / 2;
+            
+            // 半径に応じてスケールを調整（半径が大きくても画面内に収まるように）
+            const scale = Math.min(15, 200 / radius); // 半径が大きいほどスケールを小さくする
+            
+            // 座標系の設定
+            ctx.save();
+            ctx.translate(centerX, centerY);
+            ctx.scale(1, -1); // y軸を反転して数学的な座標系に
+            
+            // 背景のグリッドを描画
+            ctx.beginPath();
+            ctx.strokeStyle = '#eee';
+            ctx.lineWidth = 0.5;
+            for (let i = -10; i <= 10; i++) {
+                ctx.moveTo(-200, i * scale);
+                ctx.lineTo(200, i * scale);
+                ctx.moveTo(i * scale, -200);
+                ctx.lineTo(i * scale, 200);
+            }
+            ctx.stroke();
+            
+            // x軸とy軸を描画
+            ctx.beginPath();
+            ctx.strokeStyle = '#999';
+            ctx.lineWidth = 1;
+            ctx.moveTo(-200, 0);
+            ctx.lineTo(200, 0);
+            ctx.moveTo(0, -200);
+            ctx.lineTo(0, 200);
+            ctx.stroke();
+            
+            // 円を描画
+            ctx.beginPath();
+            ctx.strokeStyle = '#3498db';
+            ctx.lineWidth = 2;
+            ctx.arc(0, 0, radius * scale, 0, 2 * Math.PI);
+            ctx.stroke();
+            
+            // 中心点Oを描画
+            ctx.fillStyle = '#e74c3c';
+            ctx.beginPath();
+            ctx.arc(0, 0, 4, 0, 2 * Math.PI);
+            ctx.fill();
+            ctx.scale(1, -1); // テキスト用にy軸を戻す
+            ctx.fillStyle = 'black';
+            ctx.font = '14px Arial';
+            ctx.fillText('O', 5, 5);
+            ctx.scale(1, -1); // y軸を再度反転
+            
+            // アニメーションステップに基づいて描画
+            const progress = isAnimating ? Math.min(animationStep / 100, 1) : 1;
+            const angleInRadians = (angle * Math.PI) / 180;
+            const currentAngle = angleInRadians * progress;
+            
+            if (progress > 0) {
+                // 半径を描画
+                ctx.beginPath();
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                ctx.moveTo(0, 0);
+                ctx.lineTo(radius * scale * Math.cos(-currentAngle/2), radius * scale * Math.sin(-currentAngle/2));
+                ctx.stroke();
+                
+                // 点Aを描画
+                ctx.fillStyle = '#2ecc71';
+                ctx.beginPath();
+                ctx.arc(radius * scale * Math.cos(-currentAngle/2), radius * scale * Math.sin(-currentAngle/2), 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.scale(1, -1);
+                ctx.fillStyle = 'black';
+                ctx.fillText('A', radius * scale * Math.cos(-currentAngle/2) - 15, -radius * scale * Math.sin(-currentAngle/2) - 5);
+                ctx.scale(1, -1);
+                
+                // 半径を描画 (点Bへ)
+                ctx.beginPath();
+                ctx.strokeStyle = '#e74c3c';
+                ctx.lineWidth = 2;
+                ctx.moveTo(0, 0);
+                ctx.lineTo(radius * scale * Math.cos(currentAngle/2), radius * scale * Math.sin(currentAngle/2));
+                ctx.stroke();
+                
+                // 点Bを描画
+                ctx.fillStyle = '#2ecc71';
+                ctx.beginPath();
+                ctx.arc(radius * scale * Math.cos(currentAngle/2), radius * scale * Math.sin(currentAngle/2), 4, 0, 2 * Math.PI);
+                ctx.fill();
+                ctx.scale(1, -1);
+                ctx.fillStyle = 'black';
+                ctx.fillText('B', radius * scale * Math.cos(currentAngle/2) + 5, -radius * scale * Math.sin(currentAngle/2) - 5);
+                ctx.scale(1, -1);
+            }
+            
+            if (progress > 0.3) {
+                // 弦ABを描画
+                ctx.beginPath();
+                ctx.strokeStyle = '#9b59b6';
+                ctx.lineWidth = 3;
+                ctx.moveTo(radius * scale * Math.cos(-currentAngle/2), radius * scale * Math.sin(-currentAngle/2));
+                ctx.lineTo(radius * scale * Math.cos(currentAngle/2), radius * scale * Math.sin(currentAngle/2));
+                ctx.stroke();
+                
+                // 中心角を描画
+                ctx.beginPath();
+                ctx.strokeStyle = '#f39c12';
+                ctx.lineWidth = 1.5;
+                ctx.arc(0, 0, radius * scale * 0.3, -currentAngle/2, currentAngle/2);
+                ctx.stroke();
+                
+                // 中心角のテキスト
+                ctx.scale(1, -1);
+                ctx.fillStyle = '#f39c12';
+                ctx.font = '14px Arial';
+                ctx.fillText(`${Math.round(angle * progress)}°`, (radius * scale * 0.4) * Math.cos(0), -(radius * scale * 0.4) * Math.sin(0));
+                ctx.scale(1, -1);
+                
+                // 弦ABの中点Hを計算
+                const midpointX = (radius * scale * Math.cos(-currentAngle/2) + radius * scale * Math.cos(currentAngle/2)) / 2;
+                const midpointY = (radius * scale * Math.sin(-currentAngle/2) + radius * scale * Math.sin(currentAngle/2)) / 2;
+                
+                if (progress > 0.4) {
+                    // 三角形OBHを薄い黄色で強調表示
+                    ctx.beginPath();
+                    ctx.fillStyle = 'rgba(255, 255, 0, 0.2)'; // 薄い黄色
+                    ctx.moveTo(0, 0); // 中心O
+                    ctx.lineTo(radius * scale * Math.cos(currentAngle/2), radius * scale * Math.sin(currentAngle/2)); // 点B
+                    ctx.lineTo(midpointX, midpointY); // 中点H
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // 点Hを描画
+                    ctx.fillStyle = '#3498db';
+                    ctx.beginPath();
+                    ctx.arc(midpointX, midpointY, 4, 0, 2 * Math.PI);
+                    ctx.fill();
+                    ctx.scale(1, -1);
+                    ctx.fillStyle = 'black';
+                    ctx.fillText('H', midpointX, -midpointY - 10);
+                    ctx.scale(1, -1);
+                    
+                    // OHを描画
+                    ctx.beginPath();
+                    ctx.strokeStyle = '#e67e22';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 3]);
+                    ctx.moveTo(0, 0); // 中心O
+                    ctx.lineTo(midpointX, midpointY); // 中点H
+                    ctx.stroke();
+                    ctx.setLineDash([]);
+                }
+            }
+            
+            // 座標系を元に戻す
+            ctx.restore();
+            
+            // 情報を表示
+            ctx.font = '16px Arial';
+            ctx.fillStyle = 'black';
+            ctx.fillText(`半径 (r): ${radius}`, 20, 30);
+            ctx.fillText(`中心角 (θ): ${angle}°`, 20, 60);
+            
+            if (progress > 0.7) {
+                const chordLength = calculateChordLength() * progress;
+                
+                ctx.fillText(`弦の長さ (AB): ${chordLength.toFixed(2)}`, 20, 90);
+                
+                // 計算式
+                ctx.font = '14px Arial';
+                ctx.fillText(`計算式:`, 20, 130);
+                ctx.fillText(`AB = 2 × r × sin(θ/2)`, 40, 155);
+                ctx.fillText(`AB = 2 × ${radius} × sin(${angle/2}°)`, 40, 180);
+                ctx.fillText(`AB = ${chordLength.toFixed(2)}`, 40, 205);
+                
+                // 三角形OBHの説明
+                ctx.fillText(`三角形OBHについて:`, 20, 235);
+                ctx.fillText(`- Hは弦ABの中点`, 40, 260);
+                ctx.fillText(`- BHの長さ = AB/2 = ${(chordLength/2).toFixed(2)}`, 40, 285);
+                ctx.fillText(`- 角BOH = ${(angle/2).toFixed(1)}°`, 40, 310);
+            }
+        }
+        
+        // 初期描画
+        drawCanvas();
+    </script>
+</body>
+</html>
